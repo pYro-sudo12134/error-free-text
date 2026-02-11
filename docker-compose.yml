@@ -1,0 +1,78 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: errorfreetext-postgres
+    environment:
+      POSTGRES_DB: errorfreetext
+      POSTGRES_USER: ${SPRING_DATASOURCE_USERNAME}
+      POSTGRES_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - errorfreetext-network
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: errorfreetext-app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-docker}
+      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL:-jdbc:postgresql://postgres:5432/errorfreetext}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
+      APP_YANDEX_SPELLER_BASE_URL: ${APP_YANDEX_SPELLER_BASE_URL:-https://speller.yandex.net/services/spellservice.json}
+      APP_YANDEX_SPELLER_REQUEST_TIMEOUT: ${APP_YANDEX_SPELLER_REQUEST_TIMEOUT:-5000}
+      APP_SCHEDULER_FIXED_DELAY: ${APP_SCHEDULER_FIXED_DELAY:-10000}
+      APP_SCHEDULER_MAX_CONCURRENT_TASKS: ${APP_SCHEDULER_MAX_CONCURRENT_TASKS:-3}
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9090/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - errorfreetext-network
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: errorfreetext-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - postgres
+    networks:
+      - errorfreetext-network
+
+volumes:
+  postgres_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+
+networks:
+  errorfreetext-network:
+    driver: bridge

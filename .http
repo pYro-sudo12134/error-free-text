@@ -1,0 +1,59 @@
+POST http://localhost:9090/api/tasks
+Content-Type: application/json
+
+{
+  "text": "Привет, как дела? У меня вс хорошо, спасиба!",
+  "language": "RU"
+}
+
+###
+
+POST http://localhost:9090/api/tasks
+Content-Type: application/json
+
+{
+"text": "Hello, how are you? I'm fine, tanks!",
+"language": "EN"
+}
+
+###
+
+GET http://localhost:9090/actuator/info
+
+###
+
+GET http://localhost:9090/actuator/metrics
+
+###
+
+POST http://localhost:9090/api/tasks
+Content-Type: application/json
+
+{
+"text": "ab",
+"language": "EN"
+}
+
+###
+
+POST http://localhost:9090/api/tasks
+Content-Type: application/json
+
+{
+  "text": "Нормальный текст",
+  "language": "DE"
+}
+
+###
+
+POST http://localhost:9090/api/tasks
+Content-Type: application/json
+
+{
+  "text": "Мой телефон 8-800-555-3535, сайт https://example.com, файл file123.zip",
+  "language": "RU"
+}
+
+###
+
+GET http://localhost:9090/api/tasks/577a54f4-e4aa-405c-a5ff-8347bd66356a

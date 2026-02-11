@@ -1,0 +1,158 @@
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/errorfreetext}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:postgres123}
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc:
+          batch_size: 20
+        order_inserts: true
+        order_updates: true
+        format_sql: false
+    show-sql: false
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    validate-on-migrate: true
+    locations: classpath:db/migration
+
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+  cache:
+    type: caffeine
+    caffeine:
+      spec: maximumSize=1000,expireAfterWrite=1h
+
+  task:
+    scheduling:
+      enabled: true
+      pool:
+        size: 2
+
+server:
+  port: 9090
+  servlet:
+    context-path: /
+  compression:
+    enabled: true
+    mime-types: application/json,application/xml,text/html,text/xml,text/plain
+
+app:
+  yandex-speller:
+    base-url: ${APP_YANDEX_SPELLER_BASE_URL:https://speller.yandex.net/services/spellservice.json}
+    max-text-length: 10000
+    request-timeout: ${APP_YANDEX_SPELLER_REQUEST_TIMEOUT:5000}
+    max-retries: 3
+    retry-delay: 1000
+
+  scheduler:
+    fixed-delay: ${APP_SCHEDULER_FIXED_DELAY:10000}
+    max-concurrent-tasks: ${APP_SCHEDULER_MAX_CONCURRENT_TASKS:3}
+    batch-size: 5
+
+  cache:
+    tasks-processing:
+      maximum-size: 100
+      expire-after-write: 1m
+
+  correction:
+    max-chunk-size: 10000
+    ignore-urls: 4
+    ignore-digits: 2
+    find-repeat-words: 8
+    ignore-capitalization: 512
+
+logging:
+  level:
+    by.losik.errorfreetext: DEBUG
+    org.springframework: INFO
+    org.hibernate: WARN
+    org.flywaydb: INFO
+
+  file:
+    name: /app/logs/errorfreetext.log
+
+  pattern:
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  logback:
+    rollingpolicy:
+      max-file-size: 10MB
+      max-history: 30
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      yandexSpeller:
+        register-health-indicator: true
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 5s
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+
+  retry:
+    instances:
+      yandexSpeller:
+        max-attempts: 3
+        wait-duration: 500ms
+        retry-exceptions:
+          - org.springframework.web.client.ResourceAccessException
+          - java.net.ConnectException
+          - java.net.SocketTimeoutException
+
+  ratelimiter:
+    instances:
+      yandexSpeller:
+        limit-for-period: 1000
+        limit-refresh-period: 1s
+        timeout-duration: 0
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+      base-path: /actuator
+    enabled-by-default: true
+  endpoint:
+    health:
+      show-details: always
+      show-components: always
+      probes:
+        enabled: true
+    metrics:
+      enabled: true
+    prometheus:
+      enabled: true
+  info:
+    env:
+      enabled: true
+    git:
+      mode: full
+  health:
+    defaults:
+      enabled: true
+    db:
+      enabled: true
+    diskspace:
+      enabled: true
+    ping:
+      enabled: true
