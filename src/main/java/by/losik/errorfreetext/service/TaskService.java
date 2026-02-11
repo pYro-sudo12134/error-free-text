@@ -2,7 +2,6 @@ package by.losik.errorfreetext.service;
 
 import by.losik.errorfreetext.dto.TaskDto;
 import by.losik.errorfreetext.entity.CorrectionTask;
-import by.losik.errorfreetext.entity.TaskStatus;
 import by.losik.errorfreetext.exception.TaskNotFoundException;
 import by.losik.errorfreetext.mapper.TaskMapper;
 import by.losik.errorfreetext.repository.CorrectionTaskRepository;
@@ -44,31 +43,6 @@ public class TaskService {
                 .orElseThrow(() -> new TaskNotFoundException("Task with id: " + taskId + " not found"));
 
         return taskMapper.toGetResponse(task);
-    }
-
-    @Transactional
-    public CorrectionTask getNextTaskForProcessing() {
-        log.debug("Fetching next task for processing from database");
-
-        return taskRepository.findByStatusOrderByCreatedAtAsc(TaskStatus.NEW)
-                .stream()
-                .findFirst()
-                .orElse(null);
-    }
-
-    @Transactional
-    @CacheEvict(value = {"tasks", "tasks-processing"}, allEntries = true)
-    public boolean markTaskAsProcessing(UUID taskId) {
-        log.debug("Marking task as processing: {}", taskId);
-
-        int updated = taskRepository.markAsProcessing(taskId, LocalDateTime.now());
-        boolean success = updated > 0;
-
-        if (success) {
-            log.debug("Task marked as processing: {}", taskId);
-        }
-
-        return success;
     }
 
     @Transactional

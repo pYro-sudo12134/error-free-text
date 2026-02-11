@@ -21,7 +21,6 @@ import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -43,12 +42,6 @@ class TaskServiceTest {
 
     @Captor
     private ArgumentCaptor<CorrectionTask> taskCaptor;
-
-    @Captor
-    private ArgumentCaptor<UUID> uuidCaptor;
-
-    @Captor
-    private ArgumentCaptor<LocalDateTime> dateTimeCaptor;
 
     private final UUID testTaskId = UUID.fromString("27ee0fb7-e24b-4650-8cb6-ac81d20c5589");
     private CorrectionTask testTask;
@@ -186,69 +179,8 @@ class TaskServiceTest {
     }
 
     @Nested
-    @DisplayName("Тесты получения следующей задачи для обработки")
-    class GetNextTaskForProcessingTests {
-
-        @Test
-        @DisplayName("Должен получить следующую задачу со статусом NEW")
-        void shouldGetNextTaskForProcessing() {
-             
-            Mockito.when(taskRepository.findByStatusOrderByCreatedAtAsc(TaskStatus.NEW))
-                    .thenReturn(List.of(testTask));
-
-             
-            CorrectionTask result = taskService.getNextTaskForProcessing();
-
-             
-            assertThat(result).isNotNull();
-            assertThat(result.getId()).isEqualTo(testTaskId);
-            assertThat(result.getStatus()).isEqualTo(TaskStatus.NEW);
-
-            Mockito.verify(taskRepository).findByStatusOrderByCreatedAtAsc(TaskStatus.NEW);
-        }
-
-        @Test
-        @DisplayName("Должен вернуть null, если нет задач для обработки")
-        void shouldReturnNullWhenNoTasksForProcessing() {
-            Mockito.when(taskRepository.findByStatusOrderByCreatedAtAsc(TaskStatus.NEW))
-                    .thenReturn(List.of());
-
-            CorrectionTask result = taskService.getNextTaskForProcessing();
-
-            assertThat(result).isNull();
-            Mockito.verify(taskRepository).findByStatusOrderByCreatedAtAsc(TaskStatus.NEW);
-        }
-    }
-
-    @Nested
     @DisplayName("Тесты изменения статуса задачи")
     class TaskStatusUpdateTests {
-
-        @Test
-        @DisplayName("Должен отметить задачу как PROCESSING")
-        void shouldMarkTaskAsProcessing() {
-            Mockito.when(taskRepository.markAsProcessing(ArgumentMatchers.eq(testTaskId), ArgumentMatchers.any(LocalDateTime.class)))
-                    .thenReturn(1);
-
-            boolean result = taskService.markTaskAsProcessing(testTaskId);
-
-            assertThat(result).isTrue();
-            Mockito.verify(taskRepository).markAsProcessing(uuidCaptor.capture(), dateTimeCaptor.capture());
-            assertThat(uuidCaptor.getValue()).isEqualTo(testTaskId);
-            assertThat(dateTimeCaptor.getValue()).isNotNull();
-        }
-
-        @Test
-        @DisplayName("Должен вернуть false, если задача не найдена при отметке PROCESSING")
-        void shouldReturnFalseWhenTaskNotFoundForProcessing() {
-            Mockito.when(taskRepository.markAsProcessing(ArgumentMatchers.eq(testTaskId), ArgumentMatchers.any(LocalDateTime.class)))
-                    .thenReturn(0);
-
-            boolean result = taskService.markTaskAsProcessing(testTaskId);
-
-            assertThat(result).isFalse();
-            Mockito.verify(taskRepository).markAsProcessing(ArgumentMatchers.eq(testTaskId), ArgumentMatchers.any(LocalDateTime.class));
-        }
 
         @Test
         @DisplayName("Должен отметить задачу как COMPLETED")
@@ -325,18 +257,6 @@ class TaskServiceTest {
                     .isInstanceOf(TaskNotFoundException.class);
 
             Mockito.verify(taskRepository).findById(ArgumentMatchers.isNull());
-        }
-
-        @Test
-        @DisplayName("Должен обработать null ID при отметке PROCESSING")
-        void shouldHandleNullIdWhenMarkingAsProcessing() {
-            Mockito.when(taskRepository.markAsProcessing(ArgumentMatchers.isNull(), ArgumentMatchers.any(LocalDateTime.class)))
-                    .thenReturn(0);
-
-            boolean result = taskService.markTaskAsProcessing(null);
-
-            assertThat(result).isFalse();
-            Mockito.verify(taskRepository).markAsProcessing(ArgumentMatchers.isNull(), ArgumentMatchers.any(LocalDateTime.class));
         }
 
         @Test

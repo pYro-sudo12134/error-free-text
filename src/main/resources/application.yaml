@@ -64,7 +64,13 @@ app:
   scheduler:
     fixed-delay: ${APP_SCHEDULER_FIXED_DELAY:10000}
     max-concurrent-tasks: ${APP_SCHEDULER_MAX_CONCURRENT_TASKS:3}
+    poll-interval: 1000
     batch-size: 5
+
+  executor:
+    core-pool-size: 5
+    max-pool-size: 10
+    queue-capacity: 50
 
   cache:
     tasks-processing:

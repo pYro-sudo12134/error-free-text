@@ -1,60 +1,41 @@
 package by.losik.errorfreetext.scheduler;
 
 import by.losik.errorfreetext.entity.CorrectionTask;
-import by.losik.errorfreetext.service.TaskService;
-import by.losik.errorfreetext.service.TextCorrectionService;
+import by.losik.errorfreetext.repository.CorrectionTaskRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class CorrectionTaskScheduler {
 
-    private final TaskService taskService;
-    private final TextCorrectionService textCorrectionService;
+    private final CorrectionTaskRepository taskRepository;
+    private final CorrectionTaskProcessor taskProcessor;
 
-    @Scheduled(fixedDelayString = "${app.scheduler.fixed-delay:10000}")
-    public void processTasks() {
-        CorrectionTask task = taskService.getNextTaskForProcessing();
-        log.debug("Starting scheduler cycle, found task: {}", task != null ? task.getId() : "none");
+    @Value("${app.scheduler.batch-size:5}")
+    private int batchSize;
 
-        while (task != null) {
-            try {
-                processSingleTask(task);
-            } catch (Exception e) {
-                log.error("Failed to process task: " + task.getId(), e);
+    @Scheduled(fixedDelayString = "${app.scheduler.poll-interval:1000}")
+    public void dispatchTasks() {
+        int dispatched = 0;
+
+        for (int i = 0; i < batchSize; i++) {
+            CorrectionTask task = taskRepository.pollNextTask().orElse(null);
+
+            if (task == null) {
+                break;
             }
-            task = taskService.getNextTaskForProcessing();
-            log.debug("Next task: {}", task != null ? task.getId() : "none");
-        }
-    }
 
-    @Transactional
-    public void processSingleTask(CorrectionTask task) {
-        log.debug("Processing task: {}", task.getId());
-
-        if (!taskService.markTaskAsProcessing(task.getId())) {
-            log.warn("Could not mark task as processing: {}", task.getId());
-            return;
+            taskProcessor.processAsync(task);
+            dispatched++;
         }
 
-        try {
-            String correctedText = textCorrectionService.correctText(
-                    task.getOriginalText(),
-                    task.getLanguage()
-            );
-
-            taskService.markTaskAsCompleted(task.getId(), correctedText);
-            log.debug("Successfully processed task: {}", task.getId());
-
-        } catch (Exception e) {
-            log.error("Error processing task: " + task.getId(), e);
-            taskService.markTaskAsFailed(task.getId(),
-                    "Processing failed: " + e.getMessage());
+        if (dispatched > 0) {
+            log.info("Dispatched {} tasks for processing", dispatched);
         }
     }
 }
