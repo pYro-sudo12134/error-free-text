@@ -31,7 +31,7 @@ public class CacheConfig {
         cacheManager.registerCustomCache("tasks-processing", Caffeine.newBuilder()
                 .initialCapacity(10)
                 .maximumSize(100)
-                .expireAfterWrite(1, TimeUnit.MINUTES) // Короткое TTL для часто меняющихся данных
+                .expireAfterWrite(1, TimeUnit.MINUTES)
                 .recordStats()
                 .build());
 

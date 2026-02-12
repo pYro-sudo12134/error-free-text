@@ -38,7 +38,6 @@ public class TaskController {
             @ApiResponse(responseCode = "40002", description = "Невалидные данные"),
             @ApiResponse(responseCode = "40501", description = "Неразрешенный метод"),
             @ApiResponse(responseCode = "50001", description = "Серверная ошибка"),
-            @ApiResponse(responseCode = "42901", description = "Слишком много запросов")
     })
     @PostMapping
     public ResponseEntity<TaskDto.CreateResponse> createTask(
@@ -58,7 +57,6 @@ public class TaskController {
             @ApiResponse(responseCode = "40401", description = "Задача не найдена"),
             @ApiResponse(responseCode = "40501", description = "Неразрешенный метод"),
             @ApiResponse(responseCode = "50001", description = "Серверная ошибка"),
-            @ApiResponse(responseCode = "42901", description = "Слишком много запросов")
     })
     @GetMapping("/{taskId}")
     public ResponseEntity<TaskDto.GetResponse> getTask(@PathVariable UUID taskId) {
