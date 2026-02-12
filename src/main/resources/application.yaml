@@ -58,12 +58,9 @@ app:
     base-url: ${APP_YANDEX_SPELLER_BASE_URL:https://speller.yandex.net/services/spellservice.json}
     max-text-length: 10000
     request-timeout: ${APP_YANDEX_SPELLER_REQUEST_TIMEOUT:5000}
-    max-retries: 3
-    retry-delay: 1000
 
   scheduler:
     fixed-delay: ${APP_SCHEDULER_FIXED_DELAY:10000}
-    max-concurrent-tasks: ${APP_SCHEDULER_MAX_CONCURRENT_TASKS:3}
     poll-interval: 1000
     batch-size: 5
 
@@ -71,11 +68,6 @@ app:
     core-pool-size: 5
     max-pool-size: 10
     queue-capacity: 50
-
-  cache:
-    tasks-processing:
-      maximum-size: 100
-      expire-after-write: 1m
 
   correction:
     max-chunk-size: 10000
