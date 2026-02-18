@@ -28,7 +28,6 @@ public @interface ValidLanguage {
                 return false;
             }
 
-            // Проверяем, что язык один из разрешенных
             return language == Language.EN || language == Language.RU;
         }
     }

@@ -23,6 +23,7 @@ public class TaskService {
 
     private final CorrectionTaskRepository taskRepository;
     private final TaskMapper taskMapper;
+    private final CacheService cacheService;
 
     @Transactional
     @Caching(evict = {
@@ -58,7 +59,7 @@ public class TaskService {
 
         if (success) {
             log.debug("Task marked as completed: {}", taskId);
-            evictTaskCache(taskId);
+            cacheService.evictTaskCache(taskId);
         }
 
         return success;
@@ -77,19 +78,9 @@ public class TaskService {
 
         if (success) {
             log.debug("Task marked as failed: {}", taskId);
-            evictTaskCache(taskId);
+            cacheService.evictTaskCache(taskId);
         }
 
         return success;
-    }
-
-    @CacheEvict(value = "tasks", key = "#taskId")
-    public void evictTaskCache(UUID taskId) {
-        log.debug("Evicting cache for task: {}", taskId);
-    }
-
-    @CacheEvict(value = {"tasks", "tasks-processing"}, allEntries = true)
-    public void evictAllCaches() {
-        log.debug("Evicting all caches");
     }
 }

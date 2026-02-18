@@ -6,10 +6,12 @@ import by.losik.errorfreetext.entity.TaskStatus;
 import by.losik.errorfreetext.external.yandex.client.YandexSpellerClient;
 import by.losik.errorfreetext.external.yandex.exception.YandexSpellerException;
 import by.losik.errorfreetext.external.yandex.model.SpellResult;
+import by.losik.errorfreetext.service.CacheService;
 import by.losik.errorfreetext.service.TaskService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.InjectMocks;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -64,11 +66,6 @@ class ErrorFreeTextIntegrationTest {
 
     @Autowired
     private TestRestTemplate restTemplate;
-
-    @BeforeEach
-    void setUp() {
-        taskService.evictAllCaches();
-    }
 
     @Test
     @DisplayName("Полный цикл: создание, автоматическая обработка, получение исправленного текста")

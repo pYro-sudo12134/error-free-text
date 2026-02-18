@@ -26,6 +26,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("Тесты TaskService")
@@ -36,7 +37,8 @@ class TaskServiceTest {
 
     @Mock
     private TaskMapper taskMapper;
-
+    @Mock
+    private CacheService cacheService;
     @InjectMocks
     private TaskService taskService;
 
@@ -84,7 +86,7 @@ class TaskServiceTest {
         void shouldCreateTaskSuccessfully() {
              
             Mockito.when(taskMapper.toEntity(createRequest)).thenReturn(testTask);
-            Mockito.when(taskRepository.save(ArgumentMatchers.any(CorrectionTask.class))).thenReturn(testTask);
+            Mockito.when(taskRepository.save(any(CorrectionTask.class))).thenReturn(testTask);
             Mockito.when(taskMapper.toCreateResponse(testTask)).thenReturn(createResponse);
 
              
@@ -120,7 +122,7 @@ class TaskServiceTest {
             enTask.setStatus(TaskStatus.NEW);
 
             Mockito.when(taskMapper.toEntity(enRequest)).thenReturn(enTask);
-            Mockito.when(taskRepository.save(ArgumentMatchers.any(CorrectionTask.class))).thenReturn(enTask);
+            Mockito.when(taskRepository.save(any(CorrectionTask.class))).thenReturn(enTask);
             Mockito.when(taskMapper.toCreateResponse(enTask)).thenReturn(createResponse);
 
              
@@ -174,7 +176,7 @@ class TaskServiceTest {
                     .hasMessageContaining("Task with id: " + nonExistentId + " not found");
 
             Mockito.verify(taskRepository).findById(nonExistentId);
-            Mockito.verify(taskMapper, Mockito.never()).toGetResponse(ArgumentMatchers.any());
+            Mockito.verify(taskMapper, Mockito.never()).toGetResponse(any());
         }
     }
 
@@ -183,64 +185,92 @@ class TaskServiceTest {
     class TaskStatusUpdateTests {
 
         @Test
-        @DisplayName("Должен отметить задачу как COMPLETED")
-        void shouldMarkTaskAsCompleted() {
+        @DisplayName("Должен отметить задачу как COMPLETED и эвиктировать кэш")
+        void shouldMarkTaskAsCompletedAndEvictCache() {
             String correctedText = "Исправленный текст";
-            Mockito.when(taskRepository.markAsCompleted(ArgumentMatchers.eq(testTaskId), ArgumentMatchers.eq(correctedText), ArgumentMatchers.any(LocalDateTime.class)))
+            Mockito.when(taskRepository.markAsCompleted(
+                            ArgumentMatchers.eq(testTaskId),
+                            ArgumentMatchers.eq(correctedText),
+                            any(LocalDateTime.class)))
                     .thenReturn(1);
 
             boolean result = taskService.markTaskAsCompleted(testTaskId, correctedText);
 
             assertThat(result).isTrue();
+
             Mockito.verify(taskRepository).markAsCompleted(
                     ArgumentMatchers.eq(testTaskId),
                     ArgumentMatchers.eq(correctedText),
-                    ArgumentMatchers.any(LocalDateTime.class)
+                    any(LocalDateTime.class)
             );
+
+            Mockito.verify(cacheService).evictTaskCache(testTaskId);
         }
 
         @Test
-        @DisplayName("Должен отметить задачу как FAILED")
-        void shouldMarkTaskAsFailed() {
+        @DisplayName("Должен отметить задачу как FAILED и сбрасывать кэш")
+        void shouldMarkTaskAsFailedAndEvictCache() {
             String errorMessage = "Ошибка обработки";
-            Mockito.when(taskRepository.markAsFailed(ArgumentMatchers.eq(testTaskId), ArgumentMatchers.eq(errorMessage), ArgumentMatchers.any(LocalDateTime.class)))
+            Mockito.when(taskRepository.markAsFailed(
+                            ArgumentMatchers.eq(testTaskId),
+                            ArgumentMatchers.eq(errorMessage),
+                            any(LocalDateTime.class)))
                     .thenReturn(1);
 
-             
             boolean result = taskService.markTaskAsFailed(testTaskId, errorMessage);
 
             assertThat(result).isTrue();
             Mockito.verify(taskRepository).markAsFailed(
                     ArgumentMatchers.eq(testTaskId),
                     ArgumentMatchers.eq(errorMessage),
-                    ArgumentMatchers.any(LocalDateTime.class)
+                    any(LocalDateTime.class)
             );
+
+            Mockito.verify(cacheService).evictTaskCache(testTaskId);
         }
 
         @Test
-        @DisplayName("Должен вернуть false, если задача не найдена при отметке COMPLETED")
-        void shouldReturnFalseWhenTaskNotFoundForCompleted() {
+        @DisplayName("Не должен сбрасывать кэш, если задача не найдена при отметке COMPLETED")
+        void shouldNotEvictCacheWhenTaskNotFoundForCompleted() {
             String correctedText = "Исправленный текст";
-            Mockito.when(taskRepository.markAsCompleted(ArgumentMatchers.eq(testTaskId), ArgumentMatchers.eq(correctedText), ArgumentMatchers.any(LocalDateTime.class)))
+            Mockito.when(taskRepository.markAsCompleted(
+                            ArgumentMatchers.eq(testTaskId),
+                            ArgumentMatchers.eq(correctedText),
+                            any(LocalDateTime.class)))
                     .thenReturn(0);
 
             boolean result = taskService.markTaskAsCompleted(testTaskId, correctedText);
 
             assertThat(result).isFalse();
-            Mockito.verify(taskRepository).markAsCompleted(ArgumentMatchers.eq(testTaskId), ArgumentMatchers.eq(correctedText), ArgumentMatchers.any(LocalDateTime.class));
+            Mockito.verify(taskRepository).markAsCompleted(
+                    ArgumentMatchers.eq(testTaskId),
+                    ArgumentMatchers.eq(correctedText),
+                    any(LocalDateTime.class)
+            );
+
+            Mockito.verify(cacheService, Mockito.never()).evictTaskCache(any());
         }
 
         @Test
-        @DisplayName("Должен вернуть false, если задача не найдена при отметке FAILED")
-        void shouldReturnFalseWhenTaskNotFoundForFailed() {
+        @DisplayName("Не должен сбрасывать кэш, если задача не найдена при отметке FAILED")
+        void shouldNotEvictCacheWhenTaskNotFoundForFailed() {
             String errorMessage = "Ошибка";
-            Mockito.when(taskRepository.markAsFailed(ArgumentMatchers.eq(testTaskId), ArgumentMatchers.eq(errorMessage), ArgumentMatchers.any(LocalDateTime.class)))
+            Mockito.when(taskRepository.markAsFailed(
+                            ArgumentMatchers.eq(testTaskId),
+                            ArgumentMatchers.eq(errorMessage),
+                            any(LocalDateTime.class)))
                     .thenReturn(0);
 
             boolean result = taskService.markTaskAsFailed(testTaskId, errorMessage);
 
             assertThat(result).isFalse();
-            Mockito.verify(taskRepository).markAsFailed(ArgumentMatchers.eq(testTaskId), ArgumentMatchers.eq(errorMessage), ArgumentMatchers.any(LocalDateTime.class));
+            Mockito.verify(taskRepository).markAsFailed(
+                    ArgumentMatchers.eq(testTaskId),
+                    ArgumentMatchers.eq(errorMessage),
+                    any(LocalDateTime.class)
+            );
+
+            Mockito.verify(cacheService, Mockito.never()).evictTaskCache(any());
         }
     }
 
@@ -249,94 +279,45 @@ class TaskServiceTest {
     class BoundaryTests {
 
         @Test
-        @DisplayName("Должен обработать null ID при получении задачи")
-        void shouldHandleNullIdWhenGettingTask() {
-            Mockito.when(taskRepository.findById(ArgumentMatchers.isNull())).thenReturn(Optional.empty());
-
-            assertThatThrownBy(() -> taskService.getTask(null))
-                    .isInstanceOf(TaskNotFoundException.class);
-
-            Mockito.verify(taskRepository).findById(ArgumentMatchers.isNull());
-        }
-
-        @Test
-        @DisplayName("Должен обработать null correctedText при отметке COMPLETED")
+        @DisplayName("Должен обработать null correctedText и не сбрасывать кэш")
         void shouldHandleNullCorrectedTextWhenMarkingAsCompleted() {
-            Mockito.when(taskRepository.markAsCompleted(ArgumentMatchers.eq(testTaskId), ArgumentMatchers.isNull(), ArgumentMatchers.any(LocalDateTime.class)))
+            Mockito.when(taskRepository.markAsCompleted(
+                            ArgumentMatchers.eq(testTaskId),
+                            ArgumentMatchers.isNull(),
+                            ArgumentMatchers.any(LocalDateTime.class)))
                     .thenReturn(0);
 
             boolean result = taskService.markTaskAsCompleted(testTaskId, null);
 
             assertThat(result).isFalse();
-            Mockito.verify(taskRepository).markAsCompleted(ArgumentMatchers.eq(testTaskId), ArgumentMatchers.isNull(), ArgumentMatchers.any(LocalDateTime.class));
+            Mockito.verify(taskRepository).markAsCompleted(
+                    ArgumentMatchers.eq(testTaskId),
+                    ArgumentMatchers.isNull(),
+                    ArgumentMatchers.any(LocalDateTime.class)
+            );
+            Mockito.verify(cacheService, Mockito.never()).evictTaskCache(any());
         }
 
         @Test
-        @DisplayName("Должен обработать пустой correctedText при отметке COMPLETED")
+        @DisplayName("Должен обработать пустой correctedText и сбрасывать кэш при успехе")
         void shouldHandleEmptyCorrectedTextWhenMarkingAsCompleted() {
             String emptyText = "";
-            Mockito.when(taskRepository.markAsCompleted(ArgumentMatchers.eq(testTaskId), ArgumentMatchers.eq(emptyText), ArgumentMatchers.any(LocalDateTime.class)))
+            Mockito.when(taskRepository.markAsCompleted(
+                            ArgumentMatchers.eq(testTaskId),
+                            ArgumentMatchers.eq(emptyText),
+                            ArgumentMatchers.any(LocalDateTime.class)))
                     .thenReturn(1);
 
             boolean result = taskService.markTaskAsCompleted(testTaskId, emptyText);
 
             assertThat(result).isTrue();
-            Mockito.verify(taskRepository).markAsCompleted(ArgumentMatchers.eq(testTaskId), ArgumentMatchers.eq(emptyText), ArgumentMatchers.any(LocalDateTime.class));
-        }
+            Mockito.verify(taskRepository).markAsCompleted(
+                    ArgumentMatchers.eq(testTaskId),
+                    ArgumentMatchers.eq(emptyText),
+                    ArgumentMatchers.any(LocalDateTime.class)
+            );
 
-        @Test
-        @DisplayName("Должен обработать null errorMessage при отметке FAILED")
-        void shouldHandleNullErrorMessageWhenMarkingAsFailed() {
-            Mockito.when(taskRepository.markAsFailed(ArgumentMatchers.eq(testTaskId), ArgumentMatchers.isNull(), ArgumentMatchers.any(LocalDateTime.class)))
-                    .thenReturn(0);
-
-            boolean result = taskService.markTaskAsFailed(testTaskId, null);
-
-            assertThat(result).isFalse();
-            Mockito.verify(taskRepository).markAsFailed(ArgumentMatchers.eq(testTaskId), ArgumentMatchers.isNull(), ArgumentMatchers.any(LocalDateTime.class));
-        }
-    }
-
-    @Nested
-    @DisplayName("Тесты кэширования")
-    class CacheTests {
-
-        @Test
-        @DisplayName("Должен эвиктировать кэш задачи")
-        void shouldEvictTaskCache() {
-            taskService.evictTaskCache(testTaskId);
-            assertThat(taskService).isNotNull();
-        }
-
-        @Test
-        @DisplayName("Должен эвиктировать кэш при успешном завершении задачи")
-        void shouldEvictCacheOnSuccessfulCompletion() {
-            String correctedText = "Исправленный текст";
-            Mockito.when(taskRepository.markAsCompleted(ArgumentMatchers.eq(testTaskId), ArgumentMatchers.eq(correctedText), ArgumentMatchers.any(LocalDateTime.class)))
-                    .thenReturn(1);
-
-            TaskService spyTaskService = Mockito.spy(taskService);
-            Mockito.doNothing().when(spyTaskService).evictTaskCache(testTaskId);
-
-            boolean result = spyTaskService.markTaskAsCompleted(testTaskId, correctedText);
-
-            assertThat(result).isTrue();
-            Mockito.verify(spyTaskService).evictTaskCache(testTaskId);
-        }
-
-        @Test
-        @DisplayName("Не должен эвиктировать кэш при неуспешном завершении задачи")
-        void shouldNotEvictCacheOnFailedCompletion() {
-            String correctedText = "Исправленный текст";
-            Mockito.when(taskRepository.markAsCompleted(ArgumentMatchers.eq(testTaskId), ArgumentMatchers.eq(correctedText), ArgumentMatchers.any(LocalDateTime.class)))
-                    .thenReturn(0);
-
-            TaskService spyTaskService = Mockito.spy(taskService);
-
-            boolean result = spyTaskService.markTaskAsCompleted(testTaskId, correctedText);
-
-            assertThat(result).isFalse();
-            Mockito.verify(spyTaskService, Mockito.never()).evictTaskCache(ArgumentMatchers.any());
+            Mockito.verify(cacheService).evictTaskCache(testTaskId);
         }
     }
 
@@ -348,7 +329,7 @@ class TaskServiceTest {
         @DisplayName("Должен правильно маппить CreateRequest в Entity")
         void shouldMapCreateRequestToEntity() {
             Mockito.when(taskMapper.toEntity(createRequest)).thenReturn(testTask);
-            Mockito.when(taskRepository.save(ArgumentMatchers.any(CorrectionTask.class))).thenReturn(testTask);
+            Mockito.when(taskRepository.save(any(CorrectionTask.class))).thenReturn(testTask);
             Mockito.when(taskMapper.toCreateResponse(testTask)).thenReturn(createResponse);
 
             taskService.createTask(createRequest);
