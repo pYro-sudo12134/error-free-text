@@ -33,7 +33,7 @@ public interface CorrectionTaskRepository extends JpaRepository<CorrectionTask, 
         version = version + 1
     FROM next_task
     WHERE correction_tasks.id = next_task.id
-    RETURNING correction_tasks.id   -- ← явно указываем таблицу!
+    RETURNING correction_tasks.id
     """, nativeQuery = true)
     List<UUID> pollAndGetId();
 
