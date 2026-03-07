@@ -1,0 +1,88 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: errorfreetext-app
+  namespace: errorfreetext
+  labels:
+    app: errorfreetext-app
+    service: errorfreetext
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: errorfreetext-app
+  template:
+    metadata:
+      labels:
+        app: errorfreetext-app
+    spec:
+      containers:
+        - name: app
+          image: error-free-text-app:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 9090
+              name: http
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              valueFrom:
+                configMapKeyRef:
+                  name: errorfreetext-config
+                  key: SPRING_PROFILES_ACTIVE
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:postgresql://postgres-service:5432/errorfreetext"
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: errorfreetext-secrets
+                  key: SPRING_DATASOURCE_USERNAME
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: errorfreetext-secrets
+                  key: SPRING_DATASOURCE_PASSWORD
+            - name: APP_YANDEX_SPELLER_BASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: errorfreetext-config
+                  key: APP_YANDEX_SPELLER_BASE_URL
+            - name: APP_YANDEX_SPELLER_REQUEST_TIMEOUT
+              valueFrom:
+                configMapKeyRef:
+                  name: errorfreetext-config
+                  key: APP_YANDEX_SPELLER_REQUEST_TIMEOUT
+            - name: APP_SCHEDULER_FIXED_DELAY
+              valueFrom:
+                configMapKeyRef:
+                  name: errorfreetext-config
+                  key: APP_SCHEDULER_FIXED_DELAY
+            - name: APP_SCHEDULER_MAX_CONCURRENT_TASKS
+              valueFrom:
+                configMapKeyRef:
+                  name: errorfreetext-config
+                  key: APP_SCHEDULER_MAX_CONCURRENT_TASKS
+          volumeMounts:
+            - name: logs
+              mountPath: /app/logs
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 9090
+            initialDelaySeconds: 60
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 9090
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "500m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+      volumes:
+        - name: logs
+          emptyDir: {}
