@@ -29,10 +29,13 @@ spec:
                 secretKeyRef:
                   name: errorfreetext-secrets
                   key: PGADMIN_DEFAULT_PASSWORD
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "256m"
+            limits:
+              memory: "512Mi"
+              cpu: "512m"
           volumeMounts:
             - name: pgadmin-data
               mountPath: /var/lib/pgadmin
-      volumes:
-        - name: pgadmin-data
-          persistentVolumeClaim:
-            claimName: pgadmin-data

@@ -24,6 +24,8 @@ spec:
             - containerPort: 5432
               name: postgres
           env:
+            - name: POSTGRES_INITDB_ARGS
+              value: "--data-checksums"
             - name: POSTGRES_DB
               valueFrom:
                 configMapKeyRef:

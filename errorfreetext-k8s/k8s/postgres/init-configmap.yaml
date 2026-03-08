@@ -9,3 +9,6 @@ data:
     CREATE EXTENSION IF NOT EXISTS "pgcrypto";
     ALTER SYSTEM SET max_connections = '200';
     ALTER SYSTEM SET shared_buffers = '256MB';
+    ALTER SYSTEM SET full_page_writes = off;
+    ALTER SYSTEM SET checkpoint_timeout = '30min';
+    ALTER SYSTEM SET max_wal_size = '10GB';

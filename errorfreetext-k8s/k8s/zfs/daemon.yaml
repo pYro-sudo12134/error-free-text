@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: zfs-exporter
+  namespace: monitoring
+spec:
+  selector:
+    matchLabels:
+      app: zfs-exporter
+  template:
+    metadata:
+      labels:
+        app: zfs-exporter
+    spec:
+      hostPID: true
+      containers:
+        - name: zfs-exporter
+          image: pdf/zfs-exporter
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - name: proc
+              mountPath: /host/proc
+              readOnly: true
+            - name: sys
+              mountPath: /host/sys
+              readOnly: true
+      volumes:
+        - name: proc
+          hostPath:
+            path: /proc
+        - name: sys
+          hostPath:
+            path: /sys
